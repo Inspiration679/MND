@@ -1,6 +1,7 @@
 import random
-
-a0, a1, a2, a3 = 19, 13, 5, 8
+a0,a1,a2,a3=0,0,0,0
+for i in range(4):
+    globals()['a' + str(i)]=random.randint(50,80)
 
 
 class Main:
@@ -101,4 +102,4 @@ class Main:
 
 
 if __name__ == "__main__":
-    t = Main(8, 3, 19, 13, 5, 8)
+    t = Main(8, 3, a0,a1,a2,a3)
