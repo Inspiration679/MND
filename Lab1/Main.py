@@ -8,7 +8,7 @@ class Main:
         self.a0, self.a1, self.a2, self.a3, self.row, self.column = a0, a1, a2, a3, m, n
         self.main_func()
 
-    def main_func(self):
+    def main_func(sel):
         self.make_mass(self.row, self.column)
         self.y_d0_x0()
         self.make_second_mass()
