@@ -14,7 +14,7 @@ class Main:
         self.make_second_mass()
         self.show()
 
-    def make_mas(self, size1, size2):
+    def make_mass(self, size1, size2):
         self.main_mass = []
         for i in range(size1):
             temp_mass = []
