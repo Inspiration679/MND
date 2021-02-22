@@ -93,7 +93,7 @@ print(b0 + b1 * (-1) + b2 * (1), " = ", y_average_mass[1])
 print(b0 + b1 * (1) + b2 * (-1), " = ", y_average_mass[2])
 print("delta x1 = " + str(delta_x1) + ", ", "delta x2 = " + str(delta_x2) + ", ", "x10 = " + str(x10) + ", ",
       "x20 = " + str(x20) + ", ", "a0 = " + str(a_0) + ", ", "a1 = " + str(a_1), "a2 = " + str(a_2))
-print("Натуралызоване рівняння")
+print("Натуралізоване рівняння")
 print(str(a_0) + " " + str(a_1) + " * x1" + " " + str(a_2) + " * x2")
 print("Перевірка по рядках")
 print(a_0 + a_1 * (-30) + a_2 * (-15), "=", y_average_mass[0])
