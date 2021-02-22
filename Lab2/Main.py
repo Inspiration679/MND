@@ -83,7 +83,7 @@ for i in range(3):
     print("Ruv" + str(i), "=", globals()['Ruv' + str(i + 1)])
 print("mx1 = " + str(mx1) + ", ", "mx2 = " + str(mx2) + ", ", "my = " + str(my) + ", ", "a1 = " + str(a1) + ", ",
       "a2 = " + str(a2) + ", ", "a3 = " + str(a3))
-print("a11 = " + str(a11) + ",", "a22 = " + str(a22) + ",", "b0 = " + str(b0) + ",", "b1 = " + str(b1) + ",",
+print("a11 = " + str(a11) + ",", "a22 = " + str(a22) + ",", "bp0 = " + str(b0) + ",", "b1 = " + str(b1) + ",",
       "b2 = " + str(b2))
 print("Нормоване рівняння регресії")
 print(str(b0) + " " + str(b1) + "*x1" + " " + str(b2) + "*x2")
