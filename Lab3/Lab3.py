@@ -1,11 +1,10 @@
 import numpy as np
 import random
+from scipy.stats import t
 
 
 def mk_mat(x1, x2):
-    tmp_mass = []
-    for i in range(4):
-        tmp_mass.append(random.randint(x1, x2 + 1))
+    tmp_mass = [random.randint(x1, x2 + 1)for i in range(4)]
     return tmp_mass
 
 
@@ -14,6 +13,8 @@ def sum_riv(x1, x2, x3):
     y = b0 + b1 * x1 + b2 * x2 + b3 * x3
     return y
 
+
+T_tabl = t.ppf(q=0.975, df=8)
 
 x1_min, x1_max = -30, 0
 x2_min, x2_max = -15, 35
@@ -124,7 +125,7 @@ koef_T = []
 new_T = []
 
 for i in range(len(T)):
-    if T[i] > 2.306:
+    if T[i] > T_tabl:
         koef_T.append(i)
 
 for i in range(4):
@@ -170,10 +171,9 @@ print("S^2bs - ", S_Bs)
 print("Sbs - ", SBs)
 print("B0, B1, B2, B3 - ", B)
 for i in range(len(T)):
-    if T[i] > 2.306:
-        print(T[i], "Входить в рівняння")
-    else:
-        print(T[i], "Виключається з рівнняня")
+    if T[i] > T_tabl:
+        print(T[i], "Значимий коефіціент")
+
 print("Рівнняня")
 for i in koef_T:
     print("b" + str(i), "*", "x" + str(i), end=" ")
