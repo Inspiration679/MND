@@ -1,5 +1,5 @@
 import random
-
+print("new")
 a0, a1, a2, a3 = 0, 0, 0, 0
 for i in range(4):
     globals()['a' + str(i)] = random.randint(50, 80)
