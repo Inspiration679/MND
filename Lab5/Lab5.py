@@ -1,248 +1,175 @@
-import random
-import sklearn.linear_model as lm
-from scipy.stats import f, t
-from functools import partial
-from pyDOE2 import *
-from time import time
+import numpy as np
+from tabulate import tabulate
+from scipy.stats import f, t, ttest_ind, norm
+from _pydecimal import Decimal, ROUND_UP, ROUND_FLOOR
+from pyDOE2 import ccdesign
+from sklearn.linear_model import LinearRegression
 
 
-def timeit(func):
-    def wrapper(*args, **kwargs):
-        start = time()
-        result = func(*args, **kwargs)
-        end = (time() - start) * 1000
-        print(f'Час виконання: {end:.3f} мс')
-        return result
+class full_factor_experiment:
+    def __init__(self, N, m, q, y_only_int=True):
+        self.N = N
+        self.m = m
+        self.q = q
+        self.x = np.array([[0, 9], [-5, 9], [-5, 1]])
+        x_cp_min, x_cp_max = self.x.T[0].mean(), self.x.T[1].mean()
+        self.y_max = 200 + x_cp_max
+        self.y_min = 200 + x_cp_min
+        self.d = 0
+        self.l = 1.215
+        self.y_only_int = y_only_int
 
-    return wrapper
+    def get_cohren_value(self):
+        size_of_selections = self.N + 1
+        qty_of_selections = self.m - 1
+        significance = self.q
+        partResult1 = significance / (size_of_selections - 1)
+        params = [partResult1, qty_of_selections, (size_of_selections - 1 - 1) * qty_of_selections]
+        fisher = f.isf(*params)
+        result = fisher / (fisher + (size_of_selections - 1 - 1))
+        return Decimal(result).quantize(Decimal('.0001')).__float__()
 
+    def get_student_value(self):
+        f3 = (self.m - 1) * self.N
+        significance = self.q
+        return Decimal(abs(t.ppf(significance / 2, f3))).quantize(Decimal('.0001')).__float__()
 
-def regression(x, b):
-    y = sum([x[i] * b[i] for i in range(len(x))])
-    return y
+    def get_fisher_value(self):
+        f3 = (self.m - 1) * self.N
+        f4 = self.N - self.d
+        significance = self.q
+        return Decimal(abs(f.isf(significance, f4, f3))).quantize(Decimal('.0001')).__float__()
 
+    def cohren_crit(self):
+        return (np.max(self.y_std) / np.sum(self.y_std)) < self.get_cohren_value()
 
-x_range = ((-1, 8), (-5, 4), (-9, 10))
+    def student_crit(self):
+        y_std_mean = np.mean(self.y_std)
+        self.S_2b = y_std_mean / (self.N * self.m)
+        # b = np.mean(self.extended_real.T * self.y_mean, axis=1)
+        t = np.array([np.abs(b) / np.sqrt(y_std_mean / (self.N * self.m)) for b in self.b])
+        ret = np.where(t > self.get_student_value())
+        for i in range(self.b.shape[0]):
+            if i not in ret[0]:
+                print(f"Коефіцієнт {self.b[i]} - незначимий")
+                self.b[i] = 0
+        self.d = len(ret[0])
+        self.test = []
+        for i in range(len(self.y_mean)):
+            self.test.append(self.b[0] + np.sum(self.b[1:] * self.extended_real[i]))
 
-x_aver_max = sum([x[1] for x in x_range]) / 3
-x_aver_min = sum([x[0] for x in x_range]) / 3
+    def fisher_crit(self):
+        if self.d == self.N:
+            return True
+        else:
+            S_2_ad = self.m / (self.N - self.d) * np.sum(np.power(np.array(self.y_mean) - np.array(self.test), 2))
+            F_p = S_2_ad / self.S_2b
+            return F_p < self.get_fisher_value()
 
-y_max = 200 + int(x_aver_max)
-y_min = 200 + int(x_aver_min)
+    def gen_matrix(self):
+        self.seq = [[1], [2], [3], [1, 2], [1, 3], [2, 3], [1, 2, 3], [1, 1], [2, 2], [3, 3]]
 
+        if self.y_only_int == True:
+            self.y = np.random.randint(self.y_min, self.y_max + 1, (self.N, self.m))
+        else:
+            self.y = np.random.sample((self.N, self.m)) * (self.y_max - self.y_min) + self.y_min
 
-def s_kv(y, y_aver, n, m):
-    res = []
-    for i in range(n):
-        s = sum([(y_aver[i] - y[i][j]) ** 2 for j in range(m)]) / m
-        res.append(round(s, 3))
-    return res
+        self.y_mean = [i.mean() for i in self.y]
+        self.y_std = [np.std(i) for i in self.y]
 
+        delta_x = [np.abs(m[1] - m[0]) / 2 for m in self.x]
+        x_i_0 = [(m[1] + m[0]) / 2 for m in self.x]
 
-def plan_matrix5(n, m):
-    print(f'\nГенеруємо матрицю планування для n = {n}, m = {m}')
+        self.extended = ccdesign(3, center=(0, 1))
 
-    y = np.zeros(shape=(n, m))
-    for i in range(n):
-        for j in range(m):
-            y[i][j] = random.randint(y_min, y_max)
-
-    if n > 14:
-        no = n - 14
-    else:
-        no = 1
-    x_norm = ccdesign(3, center=(0, no))
-    x_norm = np.insert(x_norm, 0, 1, axis=1)
-
-    for i in range(4, 11):
-        x_norm = np.insert(x_norm, i, 0, axis=1)
-
-    l = 1.215
-
-    for i in range(len(x_norm)):
-        for j in range(len(x_norm[i])):
-            if x_norm[i][j] < -1 or x_norm[i][j] > 1:
-                if x_norm[i][j] < 0:
-                    x_norm[i][j] = -l
+        self.extended_real = np.zeros((15, 3))
+        for i in range(self.extended.shape[0]):
+            for j in range(self.extended.shape[1]):
+                if self.extended[i][j] == 1:
+                    self.extended_real[i][j] = self.x[j][1]
+                elif self.extended[i][j] == -1:
+                    self.extended_real[i][j] = self.x[j][0]
+                elif self.extended[i][j] == 0:
+                    self.extended_real[i][j] = x_i_0[j]
+                elif self.extended[i][j] > 0:
+                    self.extended[i][j] = self.l
+                    self.extended_real[i][j] = self.l * delta_x[j] + x_i_0[j]
                 else:
-                    x_norm[i][j] = l
+                    self.extended_real[i][j] = -self.l * delta_x[j] + x_i_0[j]
+                    self.extended[i][j] = -self.l
 
-    def add_sq_nums(x):
-        for i in range(len(x)):
-            x[i][4] = x[i][1] * x[i][2]
-            x[i][5] = x[i][1] * x[i][3]
-            x[i][6] = x[i][2] * x[i][3]
-            x[i][7] = x[i][1] * x[i][3] * x[i][2]
-            x[i][8] = x[i][1] ** 2
-            x[i][9] = x[i][2] ** 2
-            x[i][10] = x[i][3] ** 2
-        return x
+        num = self.extended.shape[1]
+        seq = [[1, 2], [1, 3], [2, 3], [1, 2, 3], [1, 1], [2, 2], [3, 3]]
+        for i in seq:
+            app = np.array([1] * self.extended.shape[0])
+            app_real = np.array([1] * self.extended.shape[0])
+            for j in i:
+                app = app * self.extended.T[j - 1]
+                app_real = app_real * self.extended_real.T[j - 1]
+            self.extended = np.insert(self.extended, num, app.T, axis=1)
+            self.extended_real = np.insert(self.extended_real, num, app_real.T, axis=1)
+            num += 1
+        # print(tabulate(self.extended_real))
 
-    x_norm = add_sq_nums(x_norm)
+    def find_b(self):
+        self.regression = LinearRegression()
+        self.regression.fit(self.extended_real, self.y_mean)
+        self.b = [self.regression.intercept_]
+        self.b.extend(self.regression.coef_)
+        self.b = np.round(self.b, decimals=3)
+        # print(regression.intercept_ + np.sum(self.regression.coef_ * np.array([[-5, -10, -7, 50, 35, 70, -350, 25, 100, 49]])) / self.y_mean[0])
+        self.regression_norm = LinearRegression()
+        self.regression_norm.fit(self.extended, self.y_mean)
+        self.b_norm = [self.regression_norm.intercept_]
+        self.b_norm.extend(self.regression_norm.coef_)
+        self.b_norm = np.round(self.b_norm, decimals=3)
+        # print(np.mean(regression.predict(np.array([[-5, -10, -7, 50, 35, 70, -350, 25, 100, 49]]))))
 
-    x = np.ones(shape=(len(x_norm), len(x_norm[0])), dtype=np.int64)
-    for i in range(8):
-        for j in range(1, 4):
-            if x_norm[i][j] == -1:
-                x[i][j] = x_range[j - 1][0]
+    def check(self):
+        for i in range(len(self.y_mean)):
+            predicted = np.round(self.b[0] + np.sum(self.b[1:] * self.extended_real[i]), decimals=3)
+            print(f"y{i + 1} = ", predicted, " ~ ", np.round(self.y_mean[i], decimals=3))
+            del predicted
+
+    def model(self):
+        self.gen_matrix()
+        while True:
+            if not self.cohren_crit():
+                print("Дисперсія неоднорідна за критерієм Кохрена")
+                self.gen_matrix()
             else:
-                x[i][j] = x_range[j - 1][1]
+                break
+        col = []
+        for i in range(len(self.y_mean)):
+            col.append([self.y_mean[i]])
+        to_print = np.hstack((self.extended_real, self.y, col))
+        headers = ['x1', 'x2', 'x3', 'x1x2', 'x1x3', 'x2x3', 'x1x2x3', "x1^2", "x2^2", "x3^2"]
+        for i in range(self.m):
+            headers.append(f'y{i + 1}')
+        headers.append('y')
+        headers.append('S(y)')
+        print("Матриця планування експерименту")
+        print(tabulate(list(to_print), headers=headers, tablefmt="fancy_grid"))
+        to_print = np.hstack((self.extended, self.y, col))
+        print("Матриця планування експерименту з нормованими значеннями")
+        print(tabulate(list(to_print), headers=headers, tablefmt="fancy_grid"))
+        print("Дисперсія однорідна за критерієм Кохрена")
 
-    for i in range(8, len(x)):
-        for j in range(1, 3):
-            x[i][j] = (x_range[j - 1][0] + x_range[j - 1][1]) / 2
+        self.find_b()
 
-    dx = [x_range[i][1] - (x_range[i][0] + x_range[i][1]) / 2 for i in range(3)]
+        print("Рівняння регресії",
+              f"y = {self.b[0]} + {self.b[1]}*x1 + {self.b[2]}*x2 + {self.b[3]}*x3 + {self.b[4]}*x1x2 + {self.b[5]}*x1x3 + {self.b[6]}*x2x3 + {self.b[7]}*x1x2x3 + {self.b[8]}*x1^2 + {self.b[9]}*x2^2 + {self.b[10]}*x3^2")
+        print("Рівняння регресії для кодованих значень",
+              f"y = {self.b_norm[0]} + {self.b_norm[1]}*x1 + {self.b_norm[2]}*x2 + {self.b_norm[3]}*x3 + {self.b_norm[4]}*x1x2 + {self.b_norm[5]}*x1x3 + {self.b_norm[6]}*x2x3 + {self.b_norm[7]}*x1x2x3 + {self.b_norm[8]}*x1^2 + {self.b_norm[9]}*x2^2 + {self.b_norm[10]}*x3^2")
 
-    x[8][1] = l * dx[0] + x[9][1]
-    x[9][1] = -l * dx[0] + x[9][1]
-    x[10][2] = l * dx[1] + x[9][2]
-    x[11][2] = -l * dx[1] + x[9][2]
-    x[12][3] = l * dx[2] + x[9][3]
-    x[13][3] = -l * dx[2] + x[9][3]
+        self.check()
 
-    x = add_sq_nums(x)
-
-    print('\nX:\n', x)
-    print('\nX нормоване:\n')
-    for i in x_norm:
-        print([round(x, 2) for x in i])
-    print('\nY:\n', y)
-
-    return x, y, x_norm
-
-
-def find_coef(X, Y, norm=False):
-    skm = lm.LinearRegression(fit_intercept=False)
-    skm.fit(X, Y)
-    B = skm.coef_
-
-    if norm == 1:
-        print('\nКоефіцієнти рівняння регресії з нормованими X:')
-    else:
-        print('\nКоефіцієнти рівняння регресії:')
-    B = [round(i, 3) for i in B]
-    print(B)
-    print('\nРезультат рівняння зі знайденими коефіцієнтами:\n', np.dot(X, B))
-    return B
+        self.student_crit()
+        if self.fisher_crit():
+            print("Рівняння регресії адекватно оригіналу")
+        else:
+            print("Рівняння регресії неадекватно оригіналу")
 
 
-@timeit
-def kriteriy_cochrana(y, y_aver, n, m):
-    f1 = m - 1
-    f2 = n
-    q = 0.05
-    S_kv = s_kv(y, y_aver, n, m)
-    Gp = max(S_kv) / sum(S_kv)
-    print('\nПеревірка за критерієм Кохрена')
-    return Gp
-
-
-def cohren(f1, f2, q=0.05):
-    q1 = q / f1
-    fisher_value = f.ppf(q=1 - q1, dfn=f2, dfd=(f1 - 1) * f2)
-    return fisher_value / (fisher_value + f1 - 1)
-
-
-def bs(x, y_aver, n):  # метод для оцінки коефіцієнтів
-    res = [sum(1 * y for y in y_aver) / n]
-
-    for i in range(len(x[0])):
-        b = sum(j[0] * j[1] for j in zip(x[:, i], y_aver)) / n
-        res.append(b)
-    return res
-
-
-@timeit
-def kriteriy_studenta(x, y, y_aver, n, m):
-    S_kv = s_kv(y, y_aver, n, m)
-    s_kv_aver = sum(S_kv) / n
-
-    s_Bs = (s_kv_aver / n / m) ** 0.5
-    Bs = bs(x, y_aver, n)
-    ts = [round(abs(B) / s_Bs, 3) for B in Bs]
-
-    return ts
-
-
-@timeit
-def kriteriy_fishera(y, y_aver, y_new, n, m, d):
-    S_ad = m / (n - d) * sum([(y_new[i] - y_aver[i]) ** 2 for i in range(len(y))])
-    S_kv = s_kv(y, y_aver, n, m)
-    S_kv_aver = sum(S_kv) / n
-
-    return S_ad / S_kv_aver
-
-
-def check(X, Y, B, n, m):
-    print('\n\tПеревірка рівняння:')
-    f1 = m - 1
-    f2 = n
-    f3 = f1 * f2
-    q = 0.05
-
-    student = partial(t.ppf, q=1 - q)
-    t_student = student(df=f3)
-
-    G_kr = cohren(f1, f2)
-
-    y_aver = [round(sum(i) / len(i), 3) for i in Y]
-    print('\nСереднє значення y:', y_aver)
-
-    disp = s_kv(Y, y_aver, n, m)
-    print('Дисперсія y:', disp)
-
-    Gp = kriteriy_cochrana(Y, y_aver, n, m)
-    print(f'Gp = {Gp}')
-    if Gp < G_kr:
-        print(f'З ймовірністю {1 - q} дисперсії однорідні.')
-    else:
-        print("Необхідно збільшити кількість дослідів")
-        m += 1
-        main(n, m)
-
-    ts = kriteriy_studenta(X[:, 1:], Y, y_aver, n, m)
-    print('\nКритерій Стьюдента:\n', ts)
-    res = [t for t in ts if t > t_student]
-    final_k = [B[i] for i in range(len(ts)) if ts[i] in res]
-    print('\nКоефіцієнти {} статистично незначущі, тому ми виключаємо їх з рівняння.'.format(
-        [round(i, 3) for i in B if i not in final_k]))
-
-    y_new = []
-    for j in range(n):
-        y_new.append(regression([X[j][i] for i in range(len(ts)) if ts[i] in res], final_k))
-
-    print(f'\nЗначення "y" з коефіцієнтами {final_k}')
-    print(y_new)
-
-    d = len(res)
-    if d >= n:
-        print('\nF4 <= 0')
-        print('')
-        return
-    f4 = n - d
-
-    F_p = kriteriy_fishera(Y, y_aver, y_new, n, m, d)
-
-    fisher = partial(f.ppf, q=0.95)
-    f_t = fisher(dfn=f4, dfd=f3)
-    print('\nПеревірка адекватності за критерієм Фішера')
-    print('Fp =', F_p)
-    print('F_t =', f_t)
-    if F_p < f_t:
-        print('Математична модель адекватна експериментальним даним')
-    else:
-        print('Математична модель не адекватна експериментальним даним')
-
-
-def main(n, m):
-    X5, Y5, X5_norm = plan_matrix5(n, m)
-
-    y5_aver = [round(sum(i) / len(i), 3) for i in Y5]
-    B5 = find_coef(X5, y5_aver)
-
-    check(X5_norm, Y5, B5, n, m)
-
-
-if __name__ == '__main__':
-    main(8,3)
+m = full_factor_experiment(15, 3, 0.05)
+m.model()
