@@ -57,7 +57,7 @@ def stud(dispersion, y_avg, plan, b_mass, x_mass):
 
     B0, B1, B2, B3, B4, B5, B6, B7 = 0, 0, 0, 0, 0, 0, 0, 0
     t = []
-    t_ = []
+    t_new = []
 
     for _ in range(8):
         Suma = 0
@@ -87,11 +87,9 @@ def stud(dispersion, y_avg, plan, b_mass, x_mass):
                 tmp = eq[j][1] - 1
                 S += eq[j][0] * x_mass[tmp][i]
 
-        #массив t_ містить отримані функції відгуку зі спрощеними коефіцієнтами
-        t_.append(S)
-        #----------------------------------------------------------------------
+        t_new.append(S)
 
-    return t_
+    return t_new
 
 
 plan = [
@@ -105,9 +103,9 @@ plan = [
     [+1, +1, +1, +1, +1, +1, +1, +1]
 ]
 
-x1_min, x1_max = -5, 15
-x2_min, x2_max = 25, 45
-x3_min, x3_max = 15, 45
+x1_min, x1_max = 10, 50
+x2_min, x2_max = 25, 65
+x3_min, x3_max = 50, 65
 x_min_avg, x_max_avg = 0, 0
 
 for i in range(3):
@@ -151,7 +149,8 @@ b_delta = [[N, sum(x1), sum(x2), sum(x3), sum(x1 * x2), sum(x1 * x3), sum(x2 * x
             sum(x1 * x2 * x3 ** 2), sum(x2 ** 2 * x3 ** 2), sum(x1 * x2 ** 2 * x3 ** 2)],
            [sum(x1 * x2 * x3), sum(x1 ** 2 * x2 * x3), sum(x1 * x2 ** 2 * x3), sum(x1 * x2 * x3 ** 2),
             sum(x1 ** 2 * x2 ** 2 * x3), sum(x1 ** 2 * x2 * x3 ** 2), sum(x1 * x2 ** 2 * x3 ** 2),
-            sum(x1 ** 2 * x2 ** 2 * x3 ** 2)]]
+            sum(x1 ** 2 * x2 ** 2 * x3 )]]
+
 print("Матриця планування для m=3")
 for i in range(3):
     print("Y" + str(i + 1), "=", np.array(y_mass).T[i])
