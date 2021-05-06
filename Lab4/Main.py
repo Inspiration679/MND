@@ -71,13 +71,16 @@ def stud(dispersion, y_avg, plan, b_mass, x_mass):
     kriterii = krit.ppf(q=0.975, df=2 * 8)
 
     print("За критерієм Стьюдента")
-
+    c=0
     for _ in range(8):
         if t[_] < kriterii:
             print("Коефіцієнт", "b" + str(_), "приймаємо незначним")
         elif t[_] > kriterii:
+            c+=1
             eq.append([b_mass[_], _])
-
+    if c==3:
+        print("Модель неадекватна")
+        quit()
     for i in range(8):
         S = 0
         for j in range(len(eq)):

@@ -4,7 +4,6 @@ from scipy.stats import f, t, ttest_ind, norm
 from _pydecimal import Decimal, ROUND_UP, ROUND_FLOOR
 from pyDOE2 import ccdesign
 from sklearn.linear_model import LinearRegression
-from time import process_time as clock
 
 
 class full_factor_experiment:
@@ -12,7 +11,7 @@ class full_factor_experiment:
         self.N = N
         self.m = m
         self.q = q
-        self.x = np.array([[-8, 8], [-6, 3], [-10, 7]])
+        self.x = np.array([[0, 10], [-5, 9], [-5, 1]])
         x_cp_min, x_cp_max = self.x.T[0].mean(), self.x.T[1].mean()
         self.y_max = 200 + x_cp_max
         self.y_min = 200 + x_cp_min
@@ -45,7 +44,6 @@ class full_factor_experiment:
         return (np.max(self.y_std) / np.sum(self.y_std)) < self.get_cohren_value()
 
     def student_crit(self):
-        t1 = clock()
         y_std_mean = np.mean(self.y_std)
         self.S_2b = y_std_mean / (self.N * self.m)
         # b = np.mean(self.extended_real.T * self.y_mean, axis=1)
@@ -59,23 +57,13 @@ class full_factor_experiment:
         self.test = []
         for i in range(len(self.y_mean)):
             self.test.append(self.b[0] + np.sum(self.b[1:] * self.extended_real[i]))
-        t2 = clock()
-        self.T2 = t2 - t1
 
     def fisher_crit(self):
-
-        t1 = clock()
         if self.d == self.N:
-            t2 = clock()
-            self.T3 = t2 - t1
-
             return True
         else:
             S_2_ad = self.m / (self.N - self.d) * np.sum(np.power(np.array(self.y_mean) - np.array(self.test), 2))
             F_p = S_2_ad / self.S_2b
-            t2 = clock()
-            self.T3 = t2 - t1
-
             return F_p < self.get_fisher_value()
 
     def gen_matrix(self):
@@ -144,14 +132,10 @@ class full_factor_experiment:
             del predicted
 
     def model(self):
-        t1 = clock()
         self.gen_matrix()
         while True:
             if not self.cohren_crit():
                 print("Дисперсія неоднорідна за критерієм Кохрена")
-                t2 = clock()
-                self.T1 = t2 - t1
-
                 self.gen_matrix()
             else:
                 break
@@ -170,8 +154,6 @@ class full_factor_experiment:
         print("Матриця планування експерименту з нормованими значеннями")
         print(tabulate(list(to_print), headers=headers, tablefmt="fancy_grid"))
         print("Дисперсія однорідна за критерієм Кохрена")
-        t2 = clock()
-        self.T1 = t2 - t1
 
         self.find_b()
 
@@ -187,9 +169,6 @@ class full_factor_experiment:
             print("Рівняння регресії адекватно оригіналу")
         else:
             print("Рівняння регресії неадекватно оригіналу")
-        print("Витрачено часу на Кохрена:" + str(self.T1))
-        print("Витрачено часу на Стьюдента:" + str(self.T2))
-        print("Витрачено часу на Фішера:" + str(self.T3))
 
 
 m = full_factor_experiment(15, 3, 0.05)
