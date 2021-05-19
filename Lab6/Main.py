@@ -1,7 +1,7 @@
 from copy import deepcopy
 from math import sqrt
 from random import random
-
+from time import process_time as clock
 import numpy as np
 from prettytable import PrettyTable
 x1_min = -30
@@ -10,13 +10,13 @@ x2_min = -15
 x2_max = 35
 x3_min = -30
 x3_max = 35
-
+t1,t2,t3=0,0,0
 koefs = [9.6, 8.8, 9.2, 6.9, 7.5, 0.7, 6.9, 7.4, 0.1, 5.9, 10.0]  # Koefs for search y
 x_average_max = (x1_max + x2_max + x3_max) / 3
 x_average_min = (x1_min + x2_min + x3_min) / 3
 y_max = 200 + x_average_max
 y_min = 200 + x_average_min
-
+T1,T2,T3=0,0,0
 
 def replace_column(list_: list, column, list_replace):
     list_ = deepcopy(list_)
@@ -58,6 +58,7 @@ def get_value(table: dict, key: int):
 
 
 def main(m, n):
+    global T1,T2,T3
     if n == 14:
         const_l = 1.73
         print(
@@ -230,6 +231,9 @@ def main(m, n):
     else:
         print(f"The variance is not homogeneous Gp = {g_p:.5} > Gt = {g_t}\nStart again with m = m + 1 = {m + 1}")
         return main(m=m + 1, n=n)
+    if timer==9:
+        t1_1=clock()
+        T1=t1_1-t1
 
     print("\n[ Student's test ]")
     s2_b = sum(s_i) / n
@@ -280,7 +284,10 @@ def main(m, n):
         check_i = [round(sum(beta_i[j] * i[j] for j in range(len(beta_i))), 3) for i in norm_x]
 
     for i in range(len(check_i)):
-        print(f'ŷ{i + 1} = {check_i[i]}, y_av{i + 1} = {y_av[i]}')
+        print(f'ŷ{i + 1} = {check_i[i]}, y_av{i + 1} R {y_av[i]}')
+    if timer==9:
+        t2_2=clock()
+        T2=t2_2-t2
 
     print("\n[ Fisher's test ]")
     f_4 = n - d
@@ -322,12 +329,22 @@ def main(m, n):
             f"fp = {f_p} > ft = {get_value(f_t, f_3)[f_4]}.\n"
             f"The mathematical model is not adequate to the experimental data\n"
             f"Start again with m = {m} and n = {n}")
-        return main(m=m, n=n)
+        return False
     else:
         print(
             f"fP = {f_p} < fT = {get_value(f_t, f_3)[f_4]}.\n"
             f"The mathematical model is adequate to the experimental data\n")
+        if timer==9:
+            t3_3=clock()
+            T3=t3_3-t3
+        return True
 
-
+timer=0
 # n = 14 because if you start with 4 then it will not reach 14
-main(m=2, n=14)
+t1=clock()
+for i in range(10):
+    t5=False
+    while t5 ==False:
+        t5 = main(m=2, n=14)
+    timer+=1
+print("Кохрен - ",T1/10,"Стьюдент - ",T2/10,"Фішер - ",T3/10)
